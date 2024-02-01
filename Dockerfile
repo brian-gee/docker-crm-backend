@@ -1,9 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
-
 ARG NODE_VERSION=18
 ARG PNPM_VERSION=8.14.1
 
@@ -27,14 +23,23 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile
 
+# Create the directory for orderImages and adjust its permissions
+RUN mkdir -p /usr/src/app/orderImages && \
+    chown node:node /usr/src/app/orderImages && \
+    chmod 755 /usr/src/app/orderImages
+# Create the directory for orderImages and adjust its permissions
+RUN mkdir -p /usr/src/app/tempUploads && \
+    chown node:node /usr/src/app/tempUploads && \
+    chmod 755 /usr/src/app/tempUploads
+
 # Run the application as a non-root user.
 USER node
 
 # Copy the rest of the source files into the image.
-COPY . .
+COPY --chown=node:node . .
 
 # Expose the port that the application listens on.
 EXPOSE 3000
 
 # Run the application.
-CMD node index.js
+CMD ["node", "index.js"]

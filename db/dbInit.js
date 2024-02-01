@@ -22,7 +22,8 @@ async function createTables() {
             id SERIAL PRIMARY KEY,
             amount DECIMAL,
             status VARCHAR(50),
-            client_id INTEGER REFERENCES clients(id)
+            client_id INTEGER REFERENCES clients(id),
+            picture_urls TEXT[] 
         );
     `);
 }
