@@ -16,7 +16,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGPORT: 5432
     volumes:
-      - order-images:/usr/src/app/orderImages
+      - order-images-volume:/usr/src/app/orderImages
   db:
     container_name: postgres-db
     image: postgres
@@ -28,4 +28,4 @@ services:
       - "5432:5432"
 
 volumes:
-  order-images:
+  order-images-volume:
