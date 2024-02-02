@@ -38,7 +38,9 @@ COPY . .
 
 # Expose the port that the application listens on.
 EXPOSE 3000
-EXPOSE 5432
+
+# Expose postgresql port for testing
+# EXPOSE 5432
 
 # Run the application.
 CMD node index.js
