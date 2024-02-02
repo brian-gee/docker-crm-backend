@@ -27,7 +27,10 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile
 
-# Run the application as a non-root user.
+# Create the directory for temporary order image uploads
+RUN mkdir -p /usr/src/app/tempUploads
+
+# Run the application as root user
 USER root
 
 # Copy the rest of the source files into the image.
@@ -35,6 +38,7 @@ COPY . .
 
 # Expose the port that the application listens on.
 EXPOSE 3000
+EXPOSE 5432
 
 # Run the application.
 CMD node index.js

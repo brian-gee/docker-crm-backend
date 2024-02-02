@@ -15,8 +15,6 @@ app.use("/clients", clientsRoutes);
 app.use("/orders", ordersRoutes);
 
 app.use("/orderImages", express.static(path.join(__dirname, "/orderImages")));
-console.log(__dirname);
-console.log(path.join(__dirname, "/orderImages"));
 
 app.get("/", async (req, res) => {
   res.send("Welcome to the API");

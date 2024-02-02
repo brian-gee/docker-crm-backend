@@ -57,7 +57,6 @@ router.post(
   upload.array("orderImages"),
   async (req, res) => {
     const { amount, status, client_id } = req.body;
-    let imagePaths = [];
 
     try {
       // Insert the order into the database
@@ -67,44 +66,80 @@ router.post(
       );
       const orderId = orderResult.rows[0].id;
 
-      // Initialize an array to collect image paths
-      let imagePaths = [];
-
-      // Process each uploaded file
       if (req.files && req.files.length > 0) {
-        req.files.forEach((file, index) => {
-          const finalDir = path.join(
-            __dirname,
-            "../orderImages",
-            orderId.toString()
-          );
-          if (!fs.existsSync(finalDir)) {
-            fs.mkdirSync(finalDir, { recursive: true });
-          }
-          const finalFilename = `Image-${index + 1}-${file.originalname}`;
-          const finalPath = path.join(finalDir, finalFilename);
+        // Process each uploaded file asynchronously
+        const moveFilesPromises = req.files.map((file, index) => {
+          return new Promise((resolve, reject) => {
+            const finalDir = path.join(
+              __dirname,
+              "../orderImages",
+              orderId.toString()
+            );
+            if (!fs.existsSync(finalDir)) {
+              console.log(`Creating directory: ${finalDir}`);
+              fs.mkdirSync(finalDir, { recursive: true });
+            }
 
-          // Move the file to the final destination with the new name
-          fs.renameSync(file.path, finalPath);
+            console.log(
+              `Does directory exist after creation? ${fs.existsSync(finalDir)}`
+            );
 
-          // Collect the path for database update
-          // Adjust this path as necessary based on how you want to store it
-          imagePaths.push(path.join(orderId.toString(), finalFilename));
+            const finalFilename = `Image-${index + 1}-${file.originalname}`;
+            const finalPath = path.join(finalDir, finalFilename);
+
+            console.log(`Copying file from ${file.path} to ${finalPath}`);
+
+            fs.copyFile(file.path, finalPath, (err) => {
+              if (err) {
+                console.error(`Error copying file: ${err}`);
+                reject(err);
+              } else {
+                // Now delete the original file
+                fs.unlink(file.path, (unlinkErr) => {
+                  if (unlinkErr) {
+                    console.error(`Error deleting original file: ${unlinkErr}`);
+                    reject(unlinkErr);
+                  } else {
+                    resolve(path.join(orderId.toString(), finalFilename));
+                  }
+                });
+              }
+            });
+          });
         });
 
-        // Update the database with the paths of the uploaded images
-        await pool.query("UPDATE orders SET picture_urls = $1 WHERE id = $2", [
-          imagePaths,
-          orderId,
-        ]);
-      }
+        Promise.all(moveFilesPromises)
+          .then(async (imagePaths) => {
+            // Update the database with the paths of the uploaded images
+            await pool.query(
+              "UPDATE orders SET picture_urls = $1 WHERE id = $2",
+              [imagePaths, orderId]
+            );
 
-      res.status(201).json({
-        message: "Order and images added successfully",
-        orderId: orderId,
-        imagePaths: imagePaths, // This now reflects the stored paths in the database
-      });
+            res.status(201).json({
+              message: "Order and images added successfully",
+              orderId: orderId,
+              imagePaths: imagePaths,
+            });
+          })
+          .catch((error) => {
+            // If there's an error in moving the files
+            res
+              .status(500)
+              .send("Error while processing images: " + error.message);
+          });
+      } else {
+        // If no files were uploaded but the order was created
+        res.status(201).json({
+          message: "Order added successfully, but no images were uploaded.",
+          orderId: orderId,
+        });
+      }
     } catch (error) {
+      // If there's an error in inserting the order or any other operation
+      console.error(
+        `Error while adding a new order and images: ${error.message}`
+      ); // Additional logging
       res
         .status(500)
         .send("Error while adding a new order and images: " + error.message);
