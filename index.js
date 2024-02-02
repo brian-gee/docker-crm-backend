@@ -6,8 +6,8 @@ const clientsRoutes = require("./routes/clients");
 const ordersRoutes = require("./routes/orders");
 const app = express();
 const path = require("path");
-
 app.use(cors());
+
 app.use(express.json()); // To parse JSON bodies
 const port = 3000;
 
