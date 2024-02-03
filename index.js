@@ -7,10 +7,7 @@ const ordersRoutes = require("./routes/orders");
 const app = express();
 const path = require("path");
 const corsOptions = {
-  origin: [
-    "2600:1700:1dc0:5c30:2c8c:7d96:bfa:f822:3000",
-    "https://fs-crm.vercel.app",
-  ],
+  origin: ["https://fs-crm.vercel.app"],
 };
 
 app.use(cors(corsOptions));
