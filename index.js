@@ -6,7 +6,14 @@ const clientsRoutes = require("./routes/clients");
 const ordersRoutes = require("./routes/orders");
 const app = express();
 const path = require("path");
-app.use(cors());
+const corsOptions = {
+  origin: [
+    "2600:1700:1dc0:5c30:2c8c:7d96:bfa:f822:3000",
+    "https://fs-crm.vercel.app/",
+  ],
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json()); // To parse JSON bodies
 const port = 3000;
