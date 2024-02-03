@@ -80,14 +80,8 @@ router.post(
               fs.mkdirSync(finalDir, { recursive: true });
             }
 
-            console.log(
-              `Does directory exist after creation? ${fs.existsSync(finalDir)}`
-            );
-
             const finalFilename = `Image-${index + 1}-${file.originalname}`;
             const finalPath = path.join(finalDir, finalFilename);
-
-            console.log(`Copying file from ${file.path} to ${finalPath}`);
 
             fs.copyFile(file.path, finalPath, (err) => {
               if (err) {
@@ -147,38 +141,106 @@ router.post(
   }
 );
 
-// DELETE an order
+// DELETE an order and associated images
 router.delete("/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const { rowCount } = await pool.query("DELETE FROM orders WHERE id = $1", [
-      id,
-    ]);
-    if (rowCount === 0) {
+    // First, select the order to retrieve the image paths
+    const orderRes = await pool.query(
+      "SELECT picture_urls FROM orders WHERE id = $1",
+      [id]
+    );
+    if (orderRes.rowCount === 0) {
       return res.status(404).send("Order not found");
     }
-    res.status(204).send("Order deleted");
+
+    // Delete the order
+    const deleteRes = await pool.query("DELETE FROM orders WHERE id = $1", [
+      id,
+    ]);
+    if (deleteRes.rowCount === 0) {
+      return res.status(404).send("Order not found");
+    }
+
+    // Delete the associated images and directory
+    const images = orderRes.rows[0].picture_urls;
+    if (images && images.length > 0) {
+      const orderImagesDir = path.join(
+        __dirname,
+        "../orderImages",
+        id.toString()
+      );
+      if (fs.existsSync(orderImagesDir)) {
+        // Use a recursive option to delete non-empty directories
+        fs.rmSync(orderImagesDir, { recursive: true });
+        console.log(`Deleted directory: ${orderImagesDir}`);
+      }
+    }
+
+    res.status(204).send("Order and associated images deleted");
   } catch (error) {
-    res.status(500).send("Error while deleting order");
+    console.error(`Error while deleting order and images: ${error.message}`);
+    res.status(500).send("Error while deleting order and images");
   }
 });
 
-// PUT to update an order
-router.put("/:id", authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { amount, status, client_id } = req.body;
-  try {
-    const { rows } = await pool.query(
-      "UPDATE orders SET amount = $1, status = $2, client_id = $3 WHERE id = $4 RETURNING *",
-      [amount, status, client_id, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send("Order not found");
+// PUT to update an order and add new images
+router.put(
+  "/:id",
+  authenticateToken,
+  upload.array("orderImages"),
+  async (req, res) => {
+    const { id } = req.params;
+    const { amount, status, client_id } = req.body;
+    try {
+      // Update order details in the database
+      const orderUpdateRes = await pool.query(
+        "UPDATE orders SET amount = $1, status = $2, client_id = $3 WHERE id = $4 RETURNING *",
+        [amount, status, client_id, id]
+      );
+      if (orderUpdateRes.rowCount === 0) {
+        return res.status(404).send("Order not found");
+      }
+
+      let order = orderUpdateRes.rows[0];
+
+      // Handle new image upload
+      if (req.files && req.files.length > 0) {
+        const newImagesPaths = req.files.map((file, index) => {
+          const finalFilename = `Image-${
+            order.picture_urls.length + index + 1
+          }-${file.originalname}`;
+          const finalPath = path.join(
+            __dirname,
+            "../orderImages",
+            id.toString(),
+            finalFilename
+          );
+          fs.copyFileSync(file.path, finalPath); // Copy the file to the final path
+          fs.unlinkSync(file.path); // Delete the temp file
+          return path.join(id.toString(), finalFilename); // Return the relative path
+        });
+
+        // Combine old image paths with new ones
+        const updatedImagePaths = order.picture_urls.concat(newImagesPaths);
+
+        // Update the order's picture_urls with new image paths
+        const imageUpdateRes = await pool.query(
+          "UPDATE orders SET picture_urls = $1 WHERE id = $2 RETURNING *",
+          [updatedImagePaths, id]
+        );
+        order = imageUpdateRes.rows[0]; // Update the order object with new image paths
+      }
+
+      res.json({
+        message: "Order and images updated successfully",
+        order: order,
+      });
+    } catch (error) {
+      console.error(`Error while updating order and images: ${error.message}`);
+      res.status(500).send("Error while updating order and images");
     }
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).send("Error while updating order");
   }
-});
+);
 
 module.exports = router;
