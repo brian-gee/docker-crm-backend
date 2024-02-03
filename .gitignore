@@ -1,3 +1,7 @@
+# Docker data
+pgdata/
+order-images/
+
 # Logs
 logs
 *.log

@@ -1,5 +1,16 @@
 version: "3.8"
 services:
+  db:
+    container_name: postgres-db
+    image: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
   app:
     container_name: node-app
     build: .
@@ -16,16 +27,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGPORT: 5432
     volumes:
-      - order-images-volume:/usr/src/app/orderImages
-  db:
-    container_name: postgres-db
-    image: postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+      - ./order-images:/usr/src/app/orderImages
 volumes:
-  order-images-volume:
-    external: false
+  order-images:
+  pgdata:
