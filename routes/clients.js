@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db");
-const authenticateToken = require("../db/authMiddleware");
 
 // GET all clients
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT * FROM clients");
     res.json(rows);
@@ -14,7 +13,7 @@ router.get("/", authenticateToken, async (req, res) => {
 });
 
 // GET a single client by ID
-router.get("/:id", authenticateToken, async (req, res) => {
+router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query("SELECT * FROM clients WHERE id = $1", [
@@ -30,7 +29,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
 });
 
 // POST a new client
-router.post("/", authenticateToken, async (req, res) => {
+router.post("/", async (req, res) => {
   const { first_name, last_name, phone, email, address, city, zip, company } =
     req.body;
   try {
@@ -45,7 +44,7 @@ router.post("/", authenticateToken, async (req, res) => {
 });
 
 // DELETE a client
-router.delete("/:id", authenticateToken, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { rowCount } = await pool.query("DELETE FROM clients WHERE id = $1", [
@@ -61,7 +60,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 });
 
 // PUT to update a client
-router.put("/:id", authenticateToken, async (req, res) => {
+router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { first_name, last_name, phone, email, address, city, zip, company } =
     req.body;
