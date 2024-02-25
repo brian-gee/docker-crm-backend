@@ -26,7 +26,11 @@ const upload = multer({ storage: storage });
 // GET all orders
 router.get("/", async (req, res) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM orders");
+    const { rows } = await pool.query(`
+      SELECT orders.*, clients.first_name || ' ' || clients.last_name AS name
+      FROM orders
+      JOIN clients ON orders.client_id = clients.id
+    `);
     res.json(rows);
   } catch (error) {
     res.status(500).send("Error while retrieving orders");
@@ -51,13 +55,13 @@ router.get("/:id", async (req, res) => {
 
 // POST a new order
 router.post("/", upload.array("orderImages"), async (req, res) => {
-  const { amount, status, client_id } = req.body;
+  const { amount, status, client_id, description } = req.body;
 
   try {
     // Insert the order into the database
     const orderResult = await pool.query(
-      "INSERT INTO orders (amount, status, client_id) VALUES ($1, $2, $3) RETURNING *",
-      [amount, status, client_id]
+      "INSERT INTO orders (amount, status, client_id, description) VALUES ($1, $2, $3, $4) RETURNING *",
+      [amount, status, client_id, description],
     );
     const orderId = orderResult.rows[0].id;
 
@@ -68,7 +72,7 @@ router.post("/", upload.array("orderImages"), async (req, res) => {
           const finalDir = path.join(
             __dirname,
             "../orderImages",
-            orderId.toString()
+            orderId.toString(),
           );
           if (!fs.existsSync(finalDir)) {
             console.log(`Creating directory: ${finalDir}`);
@@ -102,7 +106,7 @@ router.post("/", upload.array("orderImages"), async (req, res) => {
           // Update the database with the paths of the uploaded images
           await pool.query(
             "UPDATE orders SET picture_urls = $1 WHERE id = $2",
-            [imagePaths, orderId]
+            [imagePaths, orderId],
           );
 
           res.status(201).json({
@@ -127,7 +131,7 @@ router.post("/", upload.array("orderImages"), async (req, res) => {
   } catch (error) {
     // If there's an error in inserting the order or any other operation
     console.error(
-      `Error while adding a new order and images: ${error.message}`
+      `Error while adding a new order and images: ${error.message}`,
     ); // Additional logging
     res
       .status(500)
@@ -142,7 +146,7 @@ router.delete("/:id", async (req, res) => {
     // First, select the order to retrieve the image paths
     const orderRes = await pool.query(
       "SELECT picture_urls FROM orders WHERE id = $1",
-      [id]
+      [id],
     );
     if (orderRes.rowCount === 0) {
       return res.status(404).send("Order not found");
@@ -162,7 +166,7 @@ router.delete("/:id", async (req, res) => {
       const orderImagesDir = path.join(
         __dirname,
         "../orderImages",
-        id.toString()
+        id.toString(),
       );
       if (fs.existsSync(orderImagesDir)) {
         // Use a recursive option to delete non-empty directories
@@ -186,7 +190,7 @@ router.put("/:id", upload.array("orderImages"), async (req, res) => {
     // Update order details in the database
     const orderUpdateRes = await pool.query(
       "UPDATE orders SET amount = $1, status = $2, client_id = $3 WHERE id = $4 RETURNING *",
-      [amount, status, client_id, id]
+      [amount, status, client_id, id],
     );
     if (orderUpdateRes.rowCount === 0) {
       return res.status(404).send("Order not found");
@@ -204,7 +208,7 @@ router.put("/:id", upload.array("orderImages"), async (req, res) => {
           __dirname,
           "../orderImages",
           id.toString(),
-          finalFilename
+          finalFilename,
         );
         fs.copyFileSync(file.path, finalPath); // Copy the file to the final path
         fs.unlinkSync(file.path); // Delete the temp file
@@ -217,7 +221,7 @@ router.put("/:id", upload.array("orderImages"), async (req, res) => {
       // Update the order's picture_urls with new image paths
       const imageUpdateRes = await pool.query(
         "UPDATE orders SET picture_urls = $1 WHERE id = $2 RETURNING *",
-        [updatedImagePaths, id]
+        [updatedImagePaths, id],
       );
       order = imageUpdateRes.rows[0]; // Update the order object with new image paths
     }

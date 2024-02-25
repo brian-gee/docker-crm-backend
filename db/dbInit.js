@@ -21,9 +21,10 @@ async function createTables() {
         CREATE TABLE IF NOT EXISTS orders (
             id SERIAL PRIMARY KEY,
             amount DECIMAL,
+            description TEXT,
             status VARCHAR(50),
             client_id INTEGER REFERENCES clients(id),
-            picture_urls TEXT[] 
+            picture_urls TEXT[]
         );
     `);
 }
@@ -40,7 +41,7 @@ async function importData() {
   for (const client of clientsData) {
     const { rows } = await pool.query(
       "SELECT * FROM clients WHERE email = $1",
-      [client.email]
+      [client.email],
     );
     if (rows.length === 0) {
       await pool.query(
@@ -54,7 +55,7 @@ async function importData() {
           client.city,
           client.zip,
           client.company,
-        ]
+        ],
       );
     }
   }
